@@ -14,19 +14,32 @@ npm run build
 ```
 Compiles TypeScript to JavaScript in the `build/` directory and makes the output executable.
 
+### Run MCP Server
+```bash
+node build/index.js
+```
+Starts the MCP server. Requires environment variables to be set.
+
 ### Development Testing
 Use the `api.http` file with an HTTP client (like REST Client in VS Code) to test Clockodo API endpoints. Environment variables for authentication are loaded from `.env`:
 - `CLOCKODO_EMAIL` - Your Clockodo email
 - `CLOCKODO_API_KEY` - Your Clockodo API key
 
+### MCP Testing
+Test the server with MCP protocol messages:
+```bash
+echo '{"jsonrpc": "2.0", "method": "resources/list", "id": 1, "params": {}}' | node build/index.js
+```
+
 ## Architecture
 
-- **Entry Point**: `src/index.ts` - Currently contains minimal placeholder code
+- **Entry Point**: `src/index.ts` - Main MCP server implementation with Users resource
+- **API Client**: `src/clockodo.ts` - Clockodo API client with authentication and data fetching
 - **Build Output**: `build/index.js` - Executable MCP server binary
 - **API Testing**: `api.http` - Contains sample Clockodo API requests for development
 - **Dependencies**:
   - `@modelcontextprotocol/sdk` - Core MCP framework
-  - `zod` - Runtime type validation
+  - `zod` - Runtime type validation and API response schemas
 
 ## Environment Setup
 
@@ -38,10 +51,12 @@ CLOCKODO_API_KEY=your-api-key
 
 ## MCP Server Context
 
-This project implements an MCP server, which means:
-- The main entry point should implement MCP server protocol handlers
-- The server will expose tools and resources for Clockodo time tracking operations
-- Client applications connect to this server to access Clockodo functionality through MCP
+This project implements a fully functional MCP server that provides:
+- **Users Resource**: `clockodo://users` - Retrieves all registered users from your Clockodo instance
+- **Stdio Transport**: Communicates via stdin/stdout for MCP client integration
+- **Automatic Pagination**: Handles multiple pages of user data from Clockodo API
+- **Error Handling**: Proper MCP protocol error responses for API failures
+- **Input Validation**: Zod schemas for API response validation
 
 ## TypeScript Configuration
 
