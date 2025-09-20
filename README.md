@@ -5,7 +5,8 @@ A TypeScript-based Model Context Protocol (MCP) server that integrates with the 
 ## Features
 
 - **Users Resource**: Access all registered users from your Clockodo instance
-- **Automatic Pagination**: Handles multiple pages of user data automatically
+- **Entries Resource**: Retrieve time entries for specific users within date ranges
+- **Automatic Pagination**: Handles multiple pages of data automatically
 - **Real-time Data**: Fetches live data from Clockodo API
 - **Type Safety**: Full TypeScript implementation with Zod validation
 - **MCP Compliant**: Follows Model Context Protocol standards for seamless integration
@@ -88,7 +89,7 @@ Add to your Claude Desktop MCP configuration:
   "mcpServers": {
     "clockodo": {
       "command": "node",
-      "args": ["/path/to/clockodo-ts/build/index.js"],
+      "args": ["/absolute/path/to/your/clockodo-ts/build/index.js"],
       "env": {
         "CLOCKODO_EMAIL": "your-email@example.com",
         "CLOCKODO_API_KEY": "your-api-key"
@@ -97,6 +98,22 @@ Add to your Claude Desktop MCP configuration:
   }
 }
 ```
+
+Or using your existing `.env` file:
+
+```json
+{
+  "mcpServers": {
+    "clockodo": {
+      "command": "node",
+      "args": ["/absolute/path/to/your/clockodo-ts/build/index.js"],
+      "cwd": "/absolute/path/to/your/clockodo-ts"
+    }
+  }
+}
+```
+
+**Note**: Replace `/absolute/path/to/your/clockodo-ts` with the actual absolute path to your project directory.
 
 #### MCP Inspector
 
@@ -107,9 +124,9 @@ npx @modelcontextprotocol/inspector
 ```
 
 Configure with:
-- **Server Command**: `npx tsx /path/to/clockodo-ts/src/index.ts`
+- **Server Command**: `npx tsx /absolute/path/to/your/clockodo-ts/src/index.ts`
 - **Transport**: stdio
-- **Working Directory**: `/path/to/clockodo-ts`
+- **Working Directory**: `/absolute/path/to/your/clockodo-ts`
 
 ## Available Resources
 
@@ -124,6 +141,26 @@ Example usage in Claude:
 ```
 Can you show me all users from my Clockodo instance?
 ```
+
+### Entries Resource
+
+- **URI**: `clockodo://entries/{userId}/{timeSince}/{timeUntil}`
+- **Description**: Retrieves time entries for a specific user within a given timeframe
+- **Parameters**:
+  - `userId`: Clockodo user ID (number)
+  - `timeSince`: Start date in ISO 8601 format (e.g., `2025-09-01T00:00:00Z`)
+  - `timeUntil`: End date in ISO 8601 format (e.g., `2025-09-30T23:59:59Z`)
+- **Data**: Complete time entry information including project details, time spent, and descriptions
+- **Format**: JSON array of entry objects
+
+Example usage in Claude:
+```
+Show me time entries for user 148226 from September 1-30, 2025
+```
+
+**Example URIs**:
+- `clockodo://entries/148226/2025-09-01T00:00:00Z/2025-09-30T23:59:59Z`
+- `clockodo://entries/123/2024-12-01T00:00:00Z/2024-12-31T23:59:59Z`
 
 ## API Structure
 

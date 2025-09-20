@@ -1,4 +1,37 @@
 import { z } from "zod";
+import { writeFileSync, appendFileSync, existsSync } from "fs";
+import { join } from "path";
+
+// Logging utility
+class Logger {
+    private logFile: string;
+
+    constructor() {
+        this.logFile = join(process.cwd(), 'clockodo-api.log');
+        // Initialize log file with timestamp
+        if (!existsSync(this.logFile)) {
+            writeFileSync(this.logFile, `=== Clockodo API Log Started at ${new Date().toISOString()} ===\n`);
+        }
+    }
+
+    log(message: string, data?: any) {
+        const timestamp = new Date().toISOString();
+        const logEntry = `[${timestamp}] ${message}${data ? '\n' + JSON.stringify(data, null, 2) : ''}\n\n`;
+        appendFileSync(this.logFile, logEntry);
+    }
+
+    logRequest(method: string, url: string, headers?: any) {
+        this.log(`>>> REQUEST ${method} ${url}`, { headers });
+    }
+
+    logResponse(status: number, statusText: string, data?: any) {
+        this.log(`<<< RESPONSE ${status} ${statusText}`, data);
+    }
+
+    logError(error: string, details?: any) {
+        this.log(`!!! ERROR: ${error}`, details);
+    }
+}
 
 // Zod schemas for Clockodo API responses
 const ClockodoUserSchema = z.object({
@@ -47,25 +80,74 @@ const ClockodoUsersResponseSchema = z.object({
     })
 });
 
+const ClockodoEntrySchema = z.object({
+    id: z.number(),
+    customers_id: z.number(),
+    projects_id: z.number().nullable(),
+    users_id: z.number(),
+    billable: z.number(),
+    text: z.string().nullable(),
+    time_since: z.string(),
+    time_until: z.string(),
+    time_insert: z.string(),
+    time_last_change: z.string(),
+    hourly_rate: z.number().nullable().optional(),
+    revenue: z.number().nullable().optional(),
+    budget_is_hours: z.boolean().optional(),
+    budget_is_not_strict: z.boolean().optional(),
+    offset: z.number().optional(),
+    clocked: z.boolean().optional(),
+    locked: z.boolean().optional()
+});
+
+const ClockodoEntriesResponseSchema = z.object({
+    entries: z.array(ClockodoEntrySchema),
+    paging: z.object({
+        items_per_page: z.number(),
+        current_page: z.number(),
+        count_pages: z.number(),
+        count_items: z.number()
+    })
+});
+
 export type ClockodoUser = z.infer<typeof ClockodoUserSchema>;
 export type ClockodoUsersResponse = z.infer<typeof ClockodoUsersResponseSchema>;
+export type ClockodoEntry = z.infer<typeof ClockodoEntrySchema>;
+export type ClockodoEntriesResponse = z.infer<typeof ClockodoEntriesResponseSchema>;
 
 export class ClockodoAPI {
     private email: string;
     private apiKey: string;
     private baseUrl = "https://my.clockodo.com/api";
+    private logger: Logger;
 
     constructor() {
         this.email = process.env.CLOCKODO_EMAIL || "";
         this.apiKey = process.env.CLOCKODO_API_KEY || "";
+        this.logger = new Logger();
 
         if (!this.email || !this.apiKey) {
             throw new Error("CLOCKODO_EMAIL and CLOCKODO_API_KEY environment variables are required");
         }
+
+        this.logger.log("ClockodoAPI initialized", {
+            email: this.email,
+            baseUrl: this.baseUrl,
+            hasApiKey: !!this.apiKey
+        });
     }
 
     private async makeRequest<T>(endpoint: string, schema: z.ZodSchema<T>): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
+        const headers = {
+            'Accept': 'application/json',
+            'X-ClockodoApiUser': this.email,
+            'X-ClockodoApiKey': '***',  // Hide API key in logs
+            'X-Clockodo-External-Application': 'mcp-ts'
+        };
+
+        // Log the request
+        this.logger.logRequest('GET', url, headers);
 
         try {
             const response = await fetch(url, {
@@ -78,16 +160,44 @@ export class ClockodoAPI {
                 }
             });
 
+            // Log the response status
+            this.logger.logResponse(response.status, response.statusText);
+
             if (!response.ok) {
+                const errorText = await response.text();
+                this.logger.logError(`HTTP ${response.status}: ${response.statusText}`, {
+                    url,
+                    responseBody: errorText
+                });
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-            return schema.parse(data);
+
+            // Log the successful response data
+            this.logger.log("Response data received", {
+                dataType: typeof data,
+                isArray: Array.isArray(data),
+                keys: typeof data === 'object' ? Object.keys(data) : undefined,
+                entryCount: data?.entries?.length || data?.data?.length || 'unknown'
+            });
+
+            const parsedData = schema.parse(data);
+            this.logger.log("Data successfully validated with schema");
+
+            return parsedData;
         } catch (error) {
             if (error instanceof z.ZodError) {
+                this.logger.logError("Zod validation error", {
+                    error: error.message,
+                    issues: error.issues
+                });
                 throw new Error(`Invalid API response format: ${error.message}`);
             }
+            this.logger.logError("Request failed", {
+                error: error instanceof Error ? error.message : String(error),
+                url
+            });
             throw error;
         }
     }
@@ -113,6 +223,36 @@ export class ClockodoAPI {
             return allUsers;
         } catch (error) {
             throw new Error(`Failed to fetch users from Clockodo API: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    async getEntries(userId: number, timeSince: string, timeUntil: string): Promise<ClockodoEntry[]> {
+        try {
+            let allEntries: ClockodoEntry[] = [];
+            let page = 1;
+            let hasMorePages = true;
+
+            // Create filter object according to OpenAPI spec
+            const filterObject = { users_id: userId };
+            const filter = encodeURIComponent(JSON.stringify(filterObject));
+
+            while (hasMorePages) {
+                const response = await this.makeRequest(
+                    `/v2/entries?time_since=${timeSince}&time_until=${timeUntil}&page=${page}`,
+                    ClockodoEntriesResponseSchema
+                );
+
+                // Filter entries manually by user ID
+                const userEntries = response.entries.filter(entry => entry.users_id === userId);
+                allEntries = allEntries.concat(userEntries);
+
+                hasMorePages = page < response.paging.count_pages;
+                page++;
+            }
+
+            return allEntries;
+        } catch (error) {
+            throw new Error(`Failed to fetch entries from Clockodo API: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }
