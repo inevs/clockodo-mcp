@@ -1,13 +1,15 @@
 # Clockodo MCP Server
 
-A TypeScript-based Model Context Protocol (MCP) server that integrates with the Clockodo time tracking API. This server provides access to your Clockodo data through the standardized MCP protocol, enabling Claude Desktop and other MCP clients to interact with your Clockodo instance.
+A TypeScript-based Model Context Protocol (MCP) server that integrates with the Clockodo time tracking API. This server provides comprehensive access to your Clockodo data through the standardized MCP protocol, enabling Claude Desktop and other MCP clients to interact with users, time entries, and projects from your Clockodo instance.
 
 ## Features
 
 - **Users Resource**: Access all registered users from your Clockodo instance
 - **Entries Resource**: Retrieve time entries for specific users within date ranges
+- **Projects Resource**: Access all projects with detailed information including budgets and status
 - **Automatic Pagination**: Handles multiple pages of data automatically
 - **Real-time Data**: Fetches live data from Clockodo API
+- **Comprehensive Logging**: Detailed API request/response logging for debugging
 - **Type Safety**: Full TypeScript implementation with Zod validation
 - **MCP Compliant**: Follows Model Context Protocol standards for seamless integration
 
@@ -156,11 +158,32 @@ Can you show me all users from my Clockodo instance?
 Example usage in Claude:
 ```
 Show me time entries for user 148226 from September 1-30, 2025
+What did I work on last week? --clockodo
 ```
 
 **Example URIs**:
 - `clockodo://entries/148226/2025-09-01T00:00:00Z/2025-09-30T23:59:59Z`
 - `clockodo://entries/123/2024-12-01T00:00:00Z/2024-12-31T23:59:59Z`
+
+### Projects Resource
+
+- **URI**: `clockodo://projects`
+- **Description**: Retrieves all projects from your Clockodo instance
+- **Data**: Complete project information including:
+  - Project names, numbers, and descriptions
+  - Customer assignments and relationships
+  - Budget information (monetary amounts, hard/soft budgets)
+  - Project status (active, completed, dates)
+  - Billing settings and revenue factors
+  - Detailed notes and contact information
+- **Format**: JSON array of project objects
+
+Example usage in Claude:
+```
+Show me all projects from Clockodo
+Which projects are currently active?
+What's the budget for project "Agile Coaching 2025"?
+```
 
 ## API Structure
 
@@ -178,9 +201,10 @@ build/
 ### Key Components
 
 - **McpServer**: Main server instance handling MCP protocol
-- **ClockodoAPI**: API client for Clockodo integration
+- **ClockodoAPI**: API client for Clockodo integration with comprehensive logging
 - **StdioServerTransport**: Communication layer for MCP clients
-- **Zod Schemas**: Type validation for API responses
+- **Zod Schemas**: Type validation for API responses (Users, Entries, Projects)
+- **Logger**: Built-in logging system that writes to `clockodo-api.log`
 
 ## Development
 
@@ -207,7 +231,30 @@ curl "https://my.clockodo.com/api/v3/users?page=1" \
 Test MCP protocol responses:
 
 ```bash
+# List all available resources
 echo '{"jsonrpc": "2.0", "method": "resources/list", "id": 1, "params": {}}' | npm run dev
+
+# Test users resource
+echo '{"jsonrpc": "2.0", "method": "resources/read", "id": 2, "params": {"uri": "clockodo://users"}}' | npm run dev
+
+# Test projects resource
+echo '{"jsonrpc": "2.0", "method": "resources/read", "id": 3, "params": {"uri": "clockodo://projects"}}' | npm run dev
+
+# Test entries resource (replace with actual user ID and dates)
+echo '{"jsonrpc": "2.0", "method": "resources/read", "id": 4, "params": {"uri": "clockodo://entries/148226/2025-09-01T00:00:00Z/2025-09-30T23:59:59Z"}}' | npm run dev
+```
+
+### Logging and Debugging
+
+The server includes comprehensive logging that writes to `clockodo-api.log`:
+- All API requests and responses
+- Authentication details (API keys are masked)
+- Data validation results
+- Error details and stack traces
+
+To monitor logs in real-time:
+```bash
+tail -f clockodo-api.log
 ```
 
 ## Error Handling

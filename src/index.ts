@@ -84,6 +84,30 @@ async function main() {
         }
     );
 
+    // Register Projects resource
+    server.registerResource(
+        "projects",
+        "clockodo://projects",
+        {
+            title: "Clockodo Projects",
+            description: "All projects from your Clockodo instance",
+            mimeType: "application/json"
+        },
+        async (uri) => {
+            try {
+                const projects = await clockodoAPI.getProjects();
+                return {
+                    contents: [{
+                        uri: uri.href,
+                        text: JSON.stringify(projects, null, 2)
+                    }]
+                };
+            } catch (error) {
+                throw new Error(`Failed to fetch projects: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+    );
+
     // Connect to stdio transport
     const transport = new StdioServerTransport();
     await server.connect(transport);

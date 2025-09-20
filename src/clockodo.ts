@@ -110,10 +110,49 @@ const ClockodoEntriesResponseSchema = z.object({
     })
 });
 
+const ClockodoProjectSchema = z.object({
+    id: z.number(),
+    customers_id: z.number(),
+    name: z.string(),
+    number: z.string().nullable(),
+    active: z.boolean(),
+    billable_default: z.boolean(),
+    note: z.string().nullable().optional(),
+    billed_money: z.number().nullable().optional(),
+    billed_completely: z.boolean().nullable().optional(),
+    completed: z.boolean(),
+    completed_at: z.string().nullable(),
+    revenue_factor: z.number().nullable().optional(),
+    test_data: z.boolean(),
+    count_subprojects: z.number(),
+    deadline: z.string().nullable().optional(),
+    start_date: z.string().nullable().optional(),
+    budget: z.object({
+        monetary: z.boolean(),
+        hard: z.boolean(),
+        from_subprojects: z.boolean(),
+        interval: z.number().nullable().optional(),
+        amount: z.number().nullable().optional(),
+        notification_thresholds: z.array(z.any()).optional()
+    }).nullable().optional()
+});
+
+const ClockodoProjectsResponseSchema = z.object({
+    data: z.array(ClockodoProjectSchema),
+    paging: z.object({
+        items_per_page: z.number(),
+        current_page: z.number(),
+        count_pages: z.number(),
+        count_items: z.number()
+    })
+});
+
 export type ClockodoUser = z.infer<typeof ClockodoUserSchema>;
 export type ClockodoUsersResponse = z.infer<typeof ClockodoUsersResponseSchema>;
 export type ClockodoEntry = z.infer<typeof ClockodoEntrySchema>;
 export type ClockodoEntriesResponse = z.infer<typeof ClockodoEntriesResponseSchema>;
+export type ClockodoProject = z.infer<typeof ClockodoProjectSchema>;
+export type ClockodoProjectsResponse = z.infer<typeof ClockodoProjectsResponseSchema>;
 
 export class ClockodoAPI {
     private email: string;
@@ -253,6 +292,30 @@ export class ClockodoAPI {
             return allEntries;
         } catch (error) {
             throw new Error(`Failed to fetch entries from Clockodo API: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    async getProjects(): Promise<ClockodoProject[]> {
+        try {
+            let allProjects: ClockodoProject[] = [];
+            let page = 1;
+            let hasMorePages = true;
+
+            while (hasMorePages) {
+                const response = await this.makeRequest(
+                    `/v4/projects?page=${page}`,
+                    ClockodoProjectsResponseSchema
+                );
+
+                allProjects = allProjects.concat(response.data);
+
+                hasMorePages = page < response.paging.count_pages;
+                page++;
+            }
+
+            return allProjects;
+        } catch (error) {
+            throw new Error(`Failed to fetch projects from Clockodo API: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }
