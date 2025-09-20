@@ -10,7 +10,8 @@ X-Clockodo-External-Application: mcp-ts
 
 ### get my entries
 # time_since=2023-02-28T12:00:00Z
-GET https://my.clockodo.com/api/v2/entries?time_since=2025-09-01T00:00:00Z&time_until=2025-09-30T00:00:00Z&filter=%5B%7Busers_id:148226%7D%5D
+# Replace YOUR_USER_ID with your actual Clockodo user ID
+GET https://my.clockodo.com/api/v2/entries?time_since=2025-09-01T00:00:00Z&time_until=2025-09-30T00:00:00Z&filter=%5B%7Busers_id:YOUR_USER_ID%7D%5D
 Accept: application/json
 X-ClockodoApiUser: {{email}}
 X-ClockodoApiKey: {{apiKey}}

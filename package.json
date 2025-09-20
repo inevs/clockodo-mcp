@@ -1,7 +1,7 @@
 {
   "name": "clockodo-mcp-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Model Context Protocol (MCP) server for Clockodo time tracking API integration",
   "main": "index.js",
   "type": "module",
   "bin": {
@@ -14,7 +14,7 @@
   "files": [
     "build"
   ],
-  "keywords": [],
+  "keywords": ["mcp", "model-context-protocol", "clockodo", "time-tracking", "api", "claude"],
   "author": "",
   "license": "ISC",
   "dependencies": {
